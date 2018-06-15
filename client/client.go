@@ -6,12 +6,14 @@ import (
 	"net"
 	"time"
 
-	"github.com/wangxianzhuo/serial-tcp-client/util"
+	"github.com/wangxianzhuo/calc-tool/modbus"
 )
 
+// Client modbus client(via tcp)
 type Client struct{}
 
-func (c *Client) Run(serverAddr, ins string, isCrcGen bool) error {
+// Run execute request
+func (c *Client) Run(serverAddr string, instruction []byte) error {
 	conn, err := net.Dial("tcp", serverAddr)
 	if err != nil {
 		return fmt.Errorf("connect to %v error: %v", serverAddr, err)
@@ -19,16 +21,6 @@ func (c *Client) Run(serverAddr, ins string, isCrcGen bool) error {
 	defer conn.Close()
 	log.Printf("connect to server %v", conn.RemoteAddr())
 	conn.SetDeadline(time.Now().Add(time.Second * time.Duration(10)))
-
-	instruction, err := util.ParseInstruction(ins)
-	if err != nil {
-		return fmt.Errorf("parse instruction %X error: %v", instruction, err)
-	}
-	if isCrcGen {
-		hi, lo, _ := util.CRC16ModbusCheckCode(instruction)
-		instruction = append(instruction, hi)
-		instruction = append(instruction, lo)
-	}
 
 	_, err = conn.Write(instruction)
 	if err != nil {
@@ -41,8 +33,8 @@ func (c *Client) Run(serverAddr, ins string, isCrcGen bool) error {
 	if err != nil {
 		return fmt.Errorf("read from server %v error: %v", conn.RemoteAddr(), err)
 	}
-	if !util.CRC16ModbusCheck(buf[:n]) {
-		return fmt.Errorf("check sum for %X illegal", buf[:n])
+	if err := modbus.ResponseCheck(instruction, buf[:n]); err != nil {
+		return err
 	}
 	log.Printf("read %X from server %v", buf[:n], conn.RemoteAddr())
 
