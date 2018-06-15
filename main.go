@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/wangxianzhuo/calc-tool/modbus"
 
@@ -25,7 +26,12 @@ func main() {
 	}
 
 	client := client.Client{}
-	err = client.Run(*tcpAddr, ins)
+	err = client.Connect(*tcpAddr, time.Second*time.Duration(10))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Close()
+	_, err = client.Request(ins)
 	if err != nil {
 		log.Fatal(err)
 	}
